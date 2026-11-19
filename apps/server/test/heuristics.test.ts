@@ -41,6 +41,19 @@ describe('runHeuristics', () => {
     expect(space).toMatchObject({ start: 11, end: 12, suggestions: [''] });
   });
 
+  it('moves a space that sits before punctuation instead of after it', () => {
+    const issue = runHeuristics('Write word ,comma here.').find((i) => i.kind === 'punctuation');
+    expect(issue).toMatchObject({ start: 10, end: 12, original: ' ,', suggestions: [', '] });
+    expect(ids('Write word , comma here.')).toContain('space-before-punctuation');
+    expect(ids('Pi is 3 .14 roughly.')).not.toContain('space-before-punctuation');
+  });
+
+  it('does not treat a standalone period as a sentence end', () => {
+    expect(ids('Press Ctrl/Cmd + . to toggle focus mode.')).not.toContain('sentence-capital');
+    expect(ids('It rained. "Really." then it stopped.')).toContain('sentence-capital');
+    expect(ids('He said "stop". then it ended.')).toContain('sentence-capital');
+  });
+
   it('returns sorted, non-overlapping issues', () => {
     const issues = runHeuristics('i think i think it was a apple  , really good');
     for (let k = 1; k < issues.length; k++) {

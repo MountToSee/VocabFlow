@@ -102,7 +102,9 @@ const RULES: Rule[] = [
   {
     id: 'sentence-capital',
     kind: 'grammar',
-    pattern: /(?:^|[.!?]\s+)([a-z])/g,
+    // A terminator only ends a sentence when it follows a word, closing quote or bracket,
+    // so shortcuts like "Cmd + . to" are not treated as sentence boundaries.
+    pattern: /(?:^|(?<=[\w)\]"'”’])[.!?]+["')\]”’]*\s+)([a-z])/g,
     group: 1,
     check: (m, text) => {
       // Ignore common abbreviations like "e.g. something".
@@ -115,10 +117,16 @@ const RULES: Rule[] = [
   {
     id: 'space-before-punctuation',
     kind: 'punctuation',
-    pattern: /([A-Za-z])( +)([,.;:!?])(?=\s|$)/g,
-    group: 2,
+    pattern: /(?<=[A-Za-z]) +(?=[,;:](?![A-Za-z])|[.!?](?:\s|$|["')\]”’]))/g,
     message: () => 'Remove the space before punctuation.',
     suggest: () => [''],
+  },
+  {
+    id: 'misplaced-punctuation-space',
+    kind: 'punctuation',
+    pattern: /(?<=[A-Za-z]) +([,;:])(?=[A-Za-z])/g,
+    message: () => 'Put the space after the punctuation mark, not before it.',
+    suggest: (m) => [`${m[1]!} `],
   },
   {
     id: 'double-space',
