@@ -16,10 +16,9 @@ export function useVocabSocket() {
     return () => {
       offStatus();
       offMsg();
+      socket.disconnect();
     };
   }, [socket]);
-
-  useEffect(() => () => socket.dispose(), [socket]);
 
   return { socket, status, capabilities };
 }
