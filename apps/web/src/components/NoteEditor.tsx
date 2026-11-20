@@ -8,7 +8,7 @@ import {
   thematicBreakPlugin,
   type MDXEditorMethods,
 } from '@mdxeditor/editor';
-import { sentenceAt, type Issue } from '@vocabflow/shared';
+import type { Issue } from '@vocabflow/shared';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import {
   extractEditorText,
@@ -18,6 +18,7 @@ import {
   replaceInMarkdown,
 } from '../lib/editorText';
 import { issueAt } from '../lib/issues';
+import { selectionLookup, wordAtPoint, type LookupHit } from '../lib/lookupTerm';
 
 export interface NoteEditorHandle {
   /** Applies a suggestion in place (keeps undo history); falls back to a Markdown rewrite. */
@@ -31,19 +32,41 @@ interface Props {
   issues: Issue[];
   onMarkdownChange: (markdown: string) => void;
   onTextChange: (text: string) => void;
-  onLookup: (word: string, context: string, x: number, y: number) => void;
+  /** Show a definition peek when the pointer rests on a word. */
+  hoverLookup: boolean;
+  onLookup: (hit: LookupHit, origin: 'hover' | 'select') => void;
+  /** The pointer left the hovered word (or the editor). */
+  onHoverEnd: () => void;
+  onTyping: () => void;
   onIssueClick: (issue: Issue, x: number, y: number) => void;
 }
+
+const HOVER_DELAY_MS = 450;
+/** Hover peeks are suppressed right after typing so they don't pop up mid-sentence. */
+const TYPING_QUIET_MS = 1200;
 
 const HIGHLIGHT_KINDS = ['grammar', 'spelling', 'punctuation', 'word-choice', 'style'] as const;
 const supportsHighlights = typeof CSS !== 'undefined' && 'highlights' in CSS;
 
 export const NoteEditor = forwardRef<NoteEditorHandle, Props>(function NoteEditor(
-  { noteId, markdown, issues, onMarkdownChange, onTextChange, onLookup, onIssueClick },
+  {
+    noteId,
+    markdown,
+    issues,
+    hoverLookup,
+    onMarkdownChange,
+    onTextChange,
+    onLookup,
+    onHoverEnd,
+    onTyping,
+    onIssueClick,
+  },
   ref,
 ) {
   const editorRef = useRef<MDXEditorMethods>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout>>();
+  const lastKeyAt = useRef(0);
 
   const contentRoot = useCallback(
     () => wrapperRef.current?.querySelector<HTMLElement>('[contenteditable="true"]') ?? null,
@@ -155,21 +178,49 @@ export const NoteEditor = forwardRef<NoteEditorHandle, Props>(function NoteEdito
     [caretOffset, issues, onIssueClick],
   );
 
-  const handleDoubleClick = useCallback(
+  // Selecting a word or short phrase (including double-click) opens a full lookup.
+  const handleMouseUp = useCallback(
     (e: React.MouseEvent) => {
-      const word =
-        window
-          .getSelection()
-          ?.toString()
-          .trim()
-          .replace(/[^A-Za-z'-]/g, '') ?? '';
-      if (!word || word.length > 64) return;
-      const pos = caretOffset();
-      const context = pos ? sentenceAt(pos.text, pos.offset) : word;
-      onLookup(word, context, e.clientX, e.clientY);
+      if (e.button !== 0) return;
+      // Let the browser finalize the selection first.
+      setTimeout(() => {
+        const root = contentRoot();
+        const hit = root && selectionLookup(root);
+        if (hit) onLookup(hit, 'select');
+      });
     },
-    [caretOffset, onLookup],
+    [contentRoot, onLookup],
   );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      clearTimeout(hoverTimer.current);
+      if (!hoverLookup || e.buttons !== 0) return;
+      if (Date.now() - lastKeyAt.current < TYPING_QUIET_MS) return;
+      if (window.getSelection()?.isCollapsed === false) return;
+      const { clientX, clientY } = e;
+      hoverTimer.current = setTimeout(() => {
+        const root = contentRoot();
+        const hit = root && wordAtPoint(root, clientX, clientY);
+        if (hit) onLookup(hit, 'hover');
+        else onHoverEnd();
+      }, HOVER_DELAY_MS);
+    },
+    [contentRoot, hoverLookup, onHoverEnd, onLookup],
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    clearTimeout(hoverTimer.current);
+    onHoverEnd();
+  }, [onHoverEnd]);
+
+  const handleKeyDown = useCallback(() => {
+    lastKeyAt.current = Date.now();
+    clearTimeout(hoverTimer.current);
+    onTyping();
+  }, [onTyping]);
+
+  useEffect(() => () => clearTimeout(hoverTimer.current), []);
 
   const plugins = useMemo(
     () => [
@@ -188,7 +239,10 @@ export const NoteEditor = forwardRef<NoteEditorHandle, Props>(function NoteEdito
       ref={wrapperRef}
       className="editor-wrapper"
       onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
+      onMouseUp={handleMouseUp}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      onKeyDown={handleKeyDown}
     >
       <MDXEditor
         key={noteId}

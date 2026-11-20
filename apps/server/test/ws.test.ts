@@ -79,6 +79,17 @@ describe('WebSocket API', () => {
     ws.close();
   });
 
+  it('skips the LLM explanation for definition-only peeks', async () => {
+    const { ws, messages } = await connect();
+    ws.send(
+      JSON.stringify({ type: 'lookup', requestId: 'p1', word: 'ubiquitous', explain: false }),
+    );
+    await waitFor(messages, (m) => m.type === 'lookup:definition');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(messages.some((m) => m.type === 'lookup:explanation')).toBe(false);
+    ws.close();
+  });
+
   it('reports invalid messages', async () => {
     const { ws, messages } = await connect();
     ws.send('{"type":"nope"}');

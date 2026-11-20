@@ -1,5 +1,6 @@
 import { spawn, execFile, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { Definition } from '@vocabflow/shared';
 import type { DefinitionProvider } from './types.js';
@@ -40,6 +41,23 @@ export function parseAppleDefinition(word: string, raw: string): Definition | nu
   };
 }
 
+const HELPER_RELATIVE_PATH = 'native/macos/DictionaryHelper/.build/release/DictionaryHelper';
+
+/**
+ * Returns the explicit helper path, or the locally built helper if `swift build -c release`
+ * has been run in the repo (checked from the repo root and from a workspace directory).
+ */
+export function resolveHelperPath(
+  explicit: string | undefined,
+  cwd: string = process.cwd(),
+  exists: (path: string) => boolean = existsSync,
+): string | undefined {
+  if (explicit) return explicit;
+  return [resolve(cwd, HELPER_RELATIVE_PATH), resolve(cwd, '../..', HELPER_RELATIVE_PATH)].find(
+    exists,
+  );
+}
+
 interface Pending {
   resolve: (raw: string) => void;
   reject: (err: Error) => void;
@@ -75,6 +93,11 @@ export class MacOsDictionaryProvider implements DefinitionProvider {
         ? await this.viaHelper(word)
         : await this.viaJxa(word);
     return parseAppleDefinition(word, raw);
+  }
+
+  /** Spawns the helper up front so the first lookup doesn't pay process start-up cost. */
+  warm(): void {
+    if (this.available && this.helperPath && existsSync(this.helperPath)) this.ensureHelper();
   }
 
   dispose(): void {

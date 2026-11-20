@@ -38,7 +38,9 @@ only the latest pending analyze request per note while disconnected.
 ### Lookup pipeline
 
 `lookup` → `lookup:definition` (first dictionary hit, typically < 5 ms) →
-`lookup:explanation` (LLM, within the latency budget, or `null`).
+`lookup:explanation` (LLM, within the latency budget, or `null`). Hover peeks send
+`explain: false` and get only the definition; the client also caches definitions per word, so
+repeat lookups render with no round-trip.
 
 - **macOS Dictionary Services** via the Swift helper (persistent process, line-delimited JSON),
   or JXA through `osascript` when the helper is not built.

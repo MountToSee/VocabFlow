@@ -89,6 +89,7 @@ export function handleConnection(ws: WebSocket, deps: SessionDeps): void {
           definition,
           latencyMs: Date.now() - started,
         });
+        if (msg.explain === false) return;
         const explanation = await deps.lookup.explain(msg.word, msg.context);
         send({
           type: 'lookup:explanation',

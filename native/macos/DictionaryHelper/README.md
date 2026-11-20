@@ -9,10 +9,11 @@ swift build -c release
 .build/release/DictionaryHelper serendipity   # one-shot sanity check
 ```
 
-Then point the server at it:
+The server picks up `.build/release/DictionaryHelper` automatically and starts it at boot so
+the first lookup is already warm. To use a helper elsewhere, point the server at it:
 
 ```bash
-MACOS_DICTIONARY_HELPER=$PWD/.build/release/DictionaryHelper npm run dev
+MACOS_DICTIONARY_HELPER=/path/to/DictionaryHelper npm run dev
 ```
 
 Without the helper, the server falls back to a JXA script via `osascript` (slower, no build

@@ -8,7 +8,7 @@ import type { Config } from './config.js';
 import { createLlmRouter } from './llm/index.js';
 import type { LatencyAwareRouter } from './llm/router.js';
 import { LocalLexiconProvider } from './lookup/localLexicon.js';
-import { MacOsDictionaryProvider } from './lookup/macosDictionary.js';
+import { MacOsDictionaryProvider, resolveHelperPath } from './lookup/macosDictionary.js';
 import { LookupPipeline } from './lookup/pipeline.js';
 import type { DefinitionProvider } from './lookup/types.js';
 import { handleConnection } from './ws/session.js';
@@ -29,12 +29,13 @@ export function createVocabFlowServer({
   config,
   router = createLlmRouter(config),
   definitionProviders = [
-    new MacOsDictionaryProvider(config.MACOS_DICTIONARY_HELPER),
+    new MacOsDictionaryProvider(resolveHelperPath(config.MACOS_DICTIONARY_HELPER)),
     new LocalLexiconProvider(),
   ],
 }: AppOptions): VocabFlowServer {
   const engine = new AnalysisEngine(router);
   const lookup = new LookupPipeline(definitionProviders, router);
+  for (const provider of definitionProviders) provider.warm?.();
   const allowedOrigins = new Set(
     config.ALLOWED_ORIGINS.split(',')
       .map((o) => o.trim())
