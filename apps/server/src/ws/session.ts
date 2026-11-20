@@ -2,11 +2,13 @@ import { parseClientMessage, type ClientMessage, type ServerMessage } from '@voc
 import type { WebSocket } from 'ws';
 import type { AnalysisEngine } from '../analysis/engine.js';
 import type { LookupPipeline } from '../lookup/pipeline.js';
+import type { ParagraphRewriter } from '../rewrite/rewriter.js';
 import type { Capabilities } from '@vocabflow/shared';
 
 export interface SessionDeps {
   engine: AnalysisEngine;
   lookup: LookupPipeline;
+  rewriter: ParagraphRewriter;
   capabilities: () => Capabilities;
 }
 
@@ -96,6 +98,39 @@ export function handleConnection(ws: WebSocket, deps: SessionDeps): void {
           explanation,
           latencyMs: Date.now() - started,
         });
+        return;
+      }
+
+      case 'rewrite': {
+        // One rewrite at a time per connection: a new request supersedes the previous one.
+        inflight.get('rewrite')?.abort();
+        const controller = new AbortController();
+        inflight.set('rewrite', controller);
+        const started = Date.now();
+        const { requestId, paragraph, focus } = msg;
+        const quick = deps.rewriter.quick(paragraph);
+        const hasAi = deps.rewriter.hasAi;
+        send({
+          type: 'rewrite:result',
+          requestId,
+          rewrite: quick,
+          final: !hasAi,
+          latencyMs: Date.now() - started,
+        });
+        if (!hasAi) return;
+        try {
+          const ai = await deps.rewriter.ai(paragraph, focus, controller.signal);
+          if (controller.signal.aborted) return;
+          send({
+            type: 'rewrite:result',
+            requestId,
+            rewrite: ai ?? quick,
+            final: true,
+            latencyMs: Date.now() - started,
+          });
+        } finally {
+          if (inflight.get('rewrite') === controller) inflight.delete('rewrite');
+        }
         return;
       }
     }

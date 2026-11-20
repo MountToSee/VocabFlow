@@ -12,6 +12,8 @@ const envSchema = z.object({
   OLLAMA_BASE_URL: z.string().url().default('http://127.0.0.1:11434/v1'),
   OLLAMA_MODEL: z.string().default('llama3.2:3b'),
   LLM_LATENCY_BUDGET_MS: z.coerce.number().int().positive().default(2500),
+  /** Paragraph rewrites generate more text, so they get a longer budget. */
+  LLM_REWRITE_BUDGET_MS: z.coerce.number().int().positive().default(8000),
   MACOS_DICTIONARY_HELPER: z.string().optional(),
 });
 

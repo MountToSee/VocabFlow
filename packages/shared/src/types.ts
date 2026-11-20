@@ -41,6 +41,30 @@ export interface ContextualExplanation {
   provider: string;
 }
 
+export type RewriteKind = 'idiom' | 'phrasing' | 'collocation' | 'grammar' | 'concision';
+
+/** One phrase-level change inside a paragraph rewrite. Offsets are relative to the paragraph. */
+export interface RewriteSuggestion {
+  start: number;
+  end: number;
+  original: string;
+  replacement: string;
+  kind: RewriteKind;
+  explanation: string;
+}
+
+/** A more natural version of a whole paragraph, broken down into teachable changes. */
+export interface ParagraphRewrite {
+  paragraph: string;
+  rewritten: string;
+  suggestions: RewriteSuggestion[];
+  source: AnalysisSource;
+  /** Model/provider that produced an LLM rewrite. */
+  provider?: string;
+  /** One-line summary of what the rewrite changes overall. */
+  summary?: string;
+}
+
 export interface Capabilities {
   macosDictionary: boolean;
   llmProviders: string[];

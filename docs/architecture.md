@@ -62,15 +62,17 @@ server, vLLM, etc. work by changing the base URL.
 
 Defined in `packages/shared/src/protocol.ts` (client messages validated with zod).
 
-| Direction | Type                                                   | Purpose                                                 |
-| --------- | ------------------------------------------------------ | ------------------------------------------------------- |
-| C→S       | `analyze`                                              | `{ noteId, revision, text }`                            |
-| C→S       | `lookup`                                               | `{ requestId, word, context? }`                         |
-| C→S       | `ping`                                                 | keepalive                                               |
-| S→C       | `hello`                                                | capabilities (native dictionary, LLM providers, budget) |
-| S→C       | `analysis:start` / `analysis:issues` / `analysis:done` | streamed analysis                                       |
-| S→C       | `lookup:definition` / `lookup:explanation`             | two-phase lookup                                        |
-| S→C       | `error`                                                | validation or internal error                            |
+| Direction | Type                                                   | Purpose                                                                                                               |
+| --------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| C→S       | `analyze`                                              | `{ noteId, revision, text }`                                                                                          |
+| C→S       | `lookup`                                               | `{ requestId, word, context? }`                                                                                       |
+| C→S       | `ping`                                                 | keepalive                                                                                                             |
+| C→S       | `rewrite` `{requestId, paragraph, focus?}`             | whole-paragraph rewrite; `focus` = phrase the writer was unsure about                                                 |
+| S→C       | `rewrite:result` `{rewrite, final, latencyMs}`         | offline phrasebook first (`final: false` when AI is configured), then the AI rewrite (budget `LLM_REWRITE_BUDGET_MS`) |
+| S→C       | `hello`                                                | capabilities (native dictionary, LLM providers, budget)                                                               |
+| S→C       | `analysis:start` / `analysis:issues` / `analysis:done` | streamed analysis                                                                                                     |
+| S→C       | `lookup:definition` / `lookup:explanation`             | two-phase lookup                                                                                                      |
+| S→C       | `error`                                                | validation or internal error                                                                                          |
 
 The server binds to `127.0.0.1` and rejects browser origins not listed in `ALLOWED_ORIGINS`
 (requests without an `Origin`, e.g. from a native shell, are allowed).

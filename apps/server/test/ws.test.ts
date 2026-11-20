@@ -15,7 +15,9 @@ beforeAll(async () => {
   const llm = new FakeLlm('fake', 'local', (messages) =>
     messages[0]!.content.includes('vocabulary tutor')
       ? JSON.stringify({ explanation: 'Everywhere at once.', synonyms: ['pervasive'] })
-      : JSON.stringify({ issues: [] }),
+      : messages[0]!.content.includes('writing coach')
+        ? JSON.stringify({ rewritten: 'I was exhausted.', changes: [] })
+        : JSON.stringify({ issues: [] }),
   );
   app = createVocabFlowServer({
     config: loadConfig({}),
@@ -76,6 +78,18 @@ describe('WebSocket API', () => {
     expect(def).toMatchObject({ definition: { source: 'local-lexicon' } });
     const exp = await waitFor(messages, (m) => m.type === 'lookup:explanation');
     expect(exp).toMatchObject({ explanation: { synonyms: ['pervasive'] } });
+    ws.close();
+  });
+
+  it('streams an instant offline rewrite, then the AI rewrite', async () => {
+    const { ws, messages } = await connect();
+    ws.send(JSON.stringify({ type: 'rewrite', requestId: 'w1', paragraph: 'I was very tired.' }));
+    const quick = await waitFor(messages, (m) => m.type === 'rewrite:result' && !m.final);
+    expect(quick).toMatchObject({
+      rewrite: { source: 'heuristic', rewritten: 'I was exhausted.' },
+    });
+    const final = await waitFor(messages, (m) => m.type === 'rewrite:result' && m.final);
+    expect(final).toMatchObject({ requestId: 'w1', rewrite: { source: 'llm' } });
     ws.close();
   });
 

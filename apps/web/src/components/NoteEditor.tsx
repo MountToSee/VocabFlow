@@ -18,10 +18,14 @@ import {
   replaceInMarkdown,
 } from '../lib/editorText';
 import { issueAt } from '../lib/issues';
+import { paragraphAt } from '../lib/rewrite';
+import type { RewriteTarget } from '../hooks/useRewrite';
 
 export interface NoteEditorHandle {
   /** Applies a suggestion in place (keeps undo history); falls back to a Markdown rewrite. */
   applySuggestion(issue: Issue, replacement: string): boolean;
+  /** Paragraph containing the caret/selection; a short selection becomes the focus phrase. */
+  paragraphAtSelection(): RewriteTarget | null;
   focus(): void;
 }
 
@@ -95,24 +99,61 @@ export const NoteEditor = forwardRef<NoteEditorHandle, Props>(function NoteEdito
     ref,
     () => ({
       focus: () => editorRef.current?.focus(),
+      paragraphAtSelection() {
+        const root = contentRoot();
+        const sel = window.getSelection();
+        if (!root || !sel || sel.rangeCount === 0) return null;
+        const range = sel.getRangeAt(0);
+        if (!root.contains(range.commonAncestorContainer)) return null;
+        const et = extractEditorText(root);
+        const offset = offsetForPosition(et, range.startContainer, range.startOffset);
+        if (offset === null) return null;
+        const paragraph = paragraphAt(et.text, offset);
+        if (!paragraph) return null;
+        const selected = sel.toString().trim();
+        const rect = range.getBoundingClientRect();
+        const box = rect.width || rect.height ? rect : root.getBoundingClientRect();
+        return {
+          ...paragraph,
+          focus: selected && selected.length <= 60 ? selected : undefined,
+          x: box.left + box.width / 2,
+          y: box.bottom,
+        };
+      },
       applySuggestion(issue, replacement) {
         const root = contentRoot();
         if (!root) return false;
         const et = extractEditorText(root);
         if (et.text.slice(issue.start, issue.end) !== issue.original) return false;
 
-        const range = rangeForOffsets(et, issue.start, issue.end);
-        const selection = window.getSelection();
-        if (range && selection) {
+        const expected = et.text.slice(0, issue.start) + replacement + et.text.slice(issue.end);
+        const replaceRange = (start: number, end: number, text: string) => {
+          const range = rangeForOffsets(extractEditorText(root), start, end);
+          const selection = window.getSelection();
+          if (!range || !selection) return false;
           root.focus();
           selection.removeAllRanges();
           selection.addRange(range);
-          const ok =
-            replacement === ''
-              ? document.execCommand('delete')
-              : document.execCommand('insertText', false, replacement);
-          if (ok) return true;
-        }
+          return text === ''
+            ? document.execCommand('delete')
+            : document.execCommand('insertText', false, text);
+        };
+        const landed = () => extractEditorText(root).text === expected;
+
+        if (replaceRange(issue.start, issue.end, replacement) && landed()) return true;
+        // Lexical silently ignores an insert that replaces an entire text node (e.g. a whole
+        // paragraph): keep the node's last character through the first insert, then swap it.
+        const last = issue.start + replacement.length - 1;
+        if (
+          replacement.length > 1 &&
+          extractEditorText(root).text === et.text &&
+          replaceRange(issue.start, issue.end - 1, replacement.slice(0, -1)) &&
+          (et.text[issue.end - 1] === replacement.at(-1) ||
+            replaceRange(last, last + 1, replacement.at(-1)!)) &&
+          landed()
+        )
+          return true;
+        if (extractEditorText(root).text !== et.text) return false;
 
         const md = editorRef.current?.getMarkdown();
         if (md === undefined) return false;

@@ -63,23 +63,31 @@ export class LatencyAwareRouter {
 
   async complete(
     messages: ChatMessage[],
-    options: Omit<CompletionOptions, 'signal'> & { signal?: AbortSignal } = {},
+    options: Omit<CompletionOptions, 'signal'> & {
+      signal?: AbortSignal;
+      /** Per-call override of the latency budget, for longer generations. */
+      budgetMs?: number;
+    } = {},
   ): Promise<RoutedResult | null> {
+    const { budgetMs = this.opts.latencyBudgetMs, ...completion } = options;
     for (const provider of this.eligibleProviders()) {
       if (options.signal?.aborted) return null;
       const stats = this.stats.get(provider)!;
       const controller = new AbortController();
       const onAbort = () => controller.abort();
       options.signal?.addEventListener('abort', onAbort, { once: true });
-      const timer = setTimeout(() => controller.abort(), this.opts.latencyBudgetMs);
+      const timer = setTimeout(() => controller.abort(), budgetMs);
       const started = this.now();
       try {
-        const text = await provider.complete(messages, { ...options, signal: controller.signal });
+        const text = await provider.complete(messages, {
+          ...completion,
+          signal: controller.signal,
+        });
         const latencyMs = this.now() - started;
+        // Scale long-budget calls so a slow rewrite doesn't demote a provider for analysis.
+        const sample = latencyMs * (this.opts.latencyBudgetMs / budgetMs);
         stats.ewmaMs =
-          stats.ewmaMs === null
-            ? latencyMs
-            : EWMA_ALPHA * latencyMs + (1 - EWMA_ALPHA) * stats.ewmaMs;
+          stats.ewmaMs === null ? sample : EWMA_ALPHA * sample + (1 - EWMA_ALPHA) * stats.ewmaMs;
         stats.consecutiveFailures = 0;
         return { text, provider, latencyMs };
       } catch {
