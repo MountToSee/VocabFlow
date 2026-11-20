@@ -32,7 +32,7 @@ export function review(state: SrsState, grade: ReviewGrade, now: number = Date.n
 
   const repetitions = state.repetitions + 1;
   let interval: number;
-  if (repetitions === 1) interval = 1;
+  if (repetitions === 1) interval = grade === 'easy' ? 3 : 1;
   else if (repetitions === 2) interval = grade === 'easy' ? 4 : 3;
   else interval = Math.round(state.interval * ease * (grade === 'hard' ? 0.8 : 1));
 

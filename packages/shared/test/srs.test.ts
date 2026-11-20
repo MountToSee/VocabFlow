@@ -16,6 +16,11 @@ describe('spaced repetition', () => {
     expect(s.dueAt).toBe(s.interval * DAY);
   });
 
+  it('lets an easy first review skip ahead', () => {
+    expect(review(initialSrsState(0), 'easy', 0).interval).toBe(3);
+    expect(review(initialSrsState(0), 'hard', 0).interval).toBe(1);
+  });
+
   it('resets on a failed review and never drops ease below 1.3', () => {
     let s = initialSrsState(0);
     for (let i = 0; i < 10; i++) s = review(s, 'again', 0);
