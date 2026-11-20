@@ -1,14 +1,21 @@
-import { tokenizeWords, type Issue, type ReviewGrade } from '@vocabflow/shared';
+import {
+  tokenizeWords,
+  type Issue,
+  type ReviewGrade,
+  type RewriteSuggestion,
+} from '@vocabflow/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { InsightsPanel } from './components/InsightsPanel';
 import { IssueCard } from './components/IssueCard';
 import { LookupCard } from './components/LookupCard';
 import { NoteEditor, type NoteEditorHandle } from './components/NoteEditor';
+import { RewriteCard } from './components/RewriteCard';
 import { Sidebar } from './components/Sidebar';
 import { StatusBar } from './components/StatusBar';
 import { StudyPanel } from './components/StudyPanel';
 import { useAnalysis } from './hooks/useAnalysis';
 import { useLookup } from './hooks/useLookup';
+import { useRewrite, type RewriteTarget } from './hooks/useRewrite';
 import { useVocabSocket } from './hooks/useVocabSocket';
 import { createCard, gradeCard, loadDeck, saveDeck, type VocabCard } from './lib/deck';
 import { loadNotes, newNote, saveNotes, type Note } from './lib/notes';
@@ -16,6 +23,18 @@ import { loadNotes, newNote, saveNotes, type Note } from './lib/notes';
 type PanelTab = 'insights' | 'study';
 
 const issueKey = (i: Issue) => `${i.original}|${i.message}`;
+
+/** Wraps a plain text range as an Issue so it can go through the editor's replace path. */
+const rangeEdit = (start: number, original: string): Issue => ({
+  id: `edit-${start}`,
+  kind: 'style',
+  source: 'llm',
+  start,
+  end: start + original.length,
+  original,
+  message: '',
+  suggestions: [],
+});
 
 export function App() {
   const [notes, setNotes] = useState<Note[]>(loadNotes);
@@ -32,6 +51,21 @@ export function App() {
   const { socket, status, capabilities } = useVocabSocket();
   const analysis = useAnalysis(socket, active.id);
   const { lookup, open: openLookup, close: closeLookup } = useLookup(socket);
+  const { rewrite, open: openRewrite, markApplied, close: closeRewrite } = useRewrite(socket);
+  const lookupParagraph = useRef<RewriteTarget | null>(null);
+  const hasAi = (capabilities?.llmProviders.length ?? 0) > 0;
+
+  const startRewrite = useCallback(
+    (target: RewriteTarget | null | undefined) => {
+      if (!target) return;
+      closeLookup();
+      setOpenIssue(null);
+      openRewrite(target);
+    },
+    [closeLookup, openRewrite],
+  );
+  const rewriteAtSelection = useRef(() => {});
+  rewriteAtSelection.current = () => startRewrite(editor.current?.paragraphAtSelection());
 
   useEffect(() => saveNotes(notes), [notes]);
   useEffect(() => saveDeck(deck), [deck]);
@@ -41,6 +75,10 @@ export function App() {
       if ((e.metaKey || e.ctrlKey) && e.key === '.') {
         e.preventDefault();
         setFocusMode((f) => !f);
+      }
+      if (e.altKey && !e.metaKey && !e.ctrlKey && e.code === 'KeyR') {
+        e.preventDefault();
+        rewriteAtSelection.current();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -79,6 +117,20 @@ export function App() {
     setDismissed((d) => new Set(d).add(issueKey(issue)));
     setOpenIssue(null);
   }, []);
+
+  const applyRewrite = (s: RewriteSuggestion) => {
+    if (!rewrite) return;
+    if (
+      editor.current?.applySuggestion(rangeEdit(rewrite.start + s.start, s.original), s.replacement)
+    )
+      markApplied(s);
+  };
+
+  const replaceParagraph = (text: string) => {
+    if (!rewrite) return;
+    if (editor.current?.applySuggestion(rangeEdit(rewrite.start, rewrite.text), text))
+      closeRewrite();
+  };
 
   const createNote = () => {
     const note = newNote();
@@ -128,6 +180,14 @@ export function App() {
           >
             {focusMode ? 'Exit focus' : 'Focus'}
           </button>
+          <button
+            className="ghost small"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => rewriteAtSelection.current()}
+            title="Rewrite the paragraph at the cursor more naturally (Alt/Option + R)"
+          >
+            Rephrase
+          </button>
         </div>
         <div className="page">
           <NoteEditor
@@ -139,10 +199,13 @@ export function App() {
             onTextChange={handleTextChange}
             onLookup={(word, context, x, y) => {
               setOpenIssue(null);
+              closeRewrite();
+              lookupParagraph.current = editor.current?.paragraphAtSelection() ?? null;
               openLookup(word, context, x, y);
             }}
             onIssueClick={(issue, x, y) => {
               closeLookup();
+              closeRewrite();
               setOpenIssue({ issue, x, y });
             }}
           />
@@ -194,7 +257,26 @@ export function App() {
       )}
 
       {lookup && (
-        <LookupCard lookup={lookup} inDeck={inDeck} onSave={saveLookup} onClose={closeLookup} />
+        <LookupCard
+          lookup={lookup}
+          inDeck={inDeck}
+          onSave={saveLookup}
+          onRewrite={
+            lookupParagraph.current
+              ? () => startRewrite({ ...lookupParagraph.current!, focus: lookup.word })
+              : undefined
+          }
+          onClose={closeLookup}
+        />
+      )}
+      {rewrite && (
+        <RewriteCard
+          state={rewrite}
+          hasAi={hasAi}
+          onApply={applyRewrite}
+          onReplaceParagraph={replaceParagraph}
+          onClose={closeRewrite}
+        />
       )}
       {openIssue && (
         <IssueCard

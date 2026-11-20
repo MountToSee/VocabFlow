@@ -9,6 +9,10 @@ language-learning engine that uses your own writing as study material.
   Highlight API; click one to apply a fix.
 - **Contextual dictionary** — double-click any word: the native macOS dictionary answers
   instantly, then an LLM explains what the word means _in your sentence_ with fitting synonyms.
+- **Contextual paragraph rewrites** — `Alt/Option + R` (or **Rephrase**) rewrites the paragraph
+  at the cursor the way a native speaker would: an instant offline phrasebook pass, then an
+  AI rewrite (Ollama/OpenAI) judged across the whole paragraph, broken into idiom, phrasing and
+  collocation changes you can apply one by one or all at once.
 - **Study deck from your own writing** — save looked-up words; review them as cloze cards
   built from the sentence you wrote, scheduled with spaced repetition (SM-2).
 - **Latency-aware AI fallback** — cloud LLM → local model (Ollama) → offline heuristics,

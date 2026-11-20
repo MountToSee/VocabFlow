@@ -6,12 +6,11 @@ interface Props {
   onClose: () => void;
   children: ReactNode;
   label: string;
+  width?: number;
 }
 
-const WIDTH = 340;
-
 /** Floating card anchored near the pointer; closes on Escape or outside click. */
-export function Popover({ x, y, onClose, children, label }: Props) {
+export function Popover({ x, y, onClose, children, label, width = 340 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,7 +26,7 @@ export function Popover({ x, y, onClose, children, label }: Props) {
     };
   }, [onClose]);
 
-  const left = Math.max(12, Math.min(x - WIDTH / 2, window.innerWidth - WIDTH - 12));
+  const left = Math.max(12, Math.min(x - width / 2, window.innerWidth - width - 12));
   const top = Math.min(y + 18, window.innerHeight - 260);
 
   return (
@@ -36,7 +35,7 @@ export function Popover({ x, y, onClose, children, label }: Props) {
       className="popover"
       role="dialog"
       aria-label={label}
-      style={{ left, top, width: WIDTH }}
+      style={{ left, top, width }}
     >
       {children}
     </div>

@@ -11,6 +11,7 @@ import { LocalLexiconProvider } from './lookup/localLexicon.js';
 import { MacOsDictionaryProvider } from './lookup/macosDictionary.js';
 import { LookupPipeline } from './lookup/pipeline.js';
 import type { DefinitionProvider } from './lookup/types.js';
+import { ParagraphRewriter } from './rewrite/rewriter.js';
 import { handleConnection } from './ws/session.js';
 
 export interface AppOptions {
@@ -35,6 +36,7 @@ export function createVocabFlowServer({
 }: AppOptions): VocabFlowServer {
   const engine = new AnalysisEngine(router);
   const lookup = new LookupPipeline(definitionProviders, router);
+  const rewriter = new ParagraphRewriter(router, config.LLM_REWRITE_BUDGET_MS);
   const allowedOrigins = new Set(
     config.ALLOWED_ORIGINS.split(',')
       .map((o) => o.trim())
@@ -78,7 +80,7 @@ export function createVocabFlowServer({
     maxPayload: 256 * 1024,
     verifyClient: ({ origin }: { origin?: string }) => isAllowedOrigin(origin),
   });
-  wss.on('connection', (ws) => handleConnection(ws, { engine, lookup, capabilities }));
+  wss.on('connection', (ws) => handleConnection(ws, { engine, lookup, rewriter, capabilities }));
 
   return {
     server,

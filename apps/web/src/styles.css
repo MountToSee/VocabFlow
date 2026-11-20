@@ -393,6 +393,54 @@ button.ghost:hover {
 .card-footer {
   margin-top: 10px;
 }
+.card-footer .actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Paragraph rewrite */
+.rewrite-text {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 8px 8px 0;
+  font-family: var(--font-prose);
+  font-size: 16px;
+  line-height: 1.55;
+  max-height: 220px;
+  overflow: auto;
+}
+.rewrite-change del {
+  color: var(--muted);
+}
+.rewrite-change ins {
+  text-decoration: none;
+  font-weight: 600;
+  color: var(--accent);
+}
+.rewrite-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  max-height: 240px;
+  overflow: auto;
+}
+.rewrite-list li {
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.rewrite-list p.small {
+  margin: 2px 0 0;
+}
+.rewrite-line {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.kind-rewrite {
+  color: var(--accent);
+}
 .shimmer {
   animation: pulse 1.2s ease-in-out infinite;
 }

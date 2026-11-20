@@ -12,10 +12,12 @@ interface Props {
   lookup: LookupState;
   inDeck: boolean;
   onSave: () => void;
+  /** Opens a whole-paragraph rewrite, for when a definition alone doesn't help. */
+  onRewrite?: () => void;
   onClose: () => void;
 }
 
-export function LookupCard({ lookup, inDeck, onSave, onClose }: Props) {
+export function LookupCard({ lookup, inDeck, onSave, onRewrite, onClose }: Props) {
   const { definition, explanation } = lookup;
   const synonyms = [
     ...new Set([...(explanation?.synonyms ?? []), ...(definition?.synonyms ?? [])]),
@@ -47,6 +49,12 @@ export function LookupCard({ lookup, inDeck, onSave, onClose }: Props) {
         )}
       </section>
 
+      {onRewrite && definition?.source === 'none' && (
+        <p className="muted small">
+          Not in the dictionary — see how a native speaker might phrase the whole paragraph.
+        </p>
+      )}
+
       {synonyms.length > 0 && (
         <div className="chips">
           {synonyms.map((s) => (
@@ -63,9 +71,16 @@ export function LookupCard({ lookup, inDeck, onSave, onClose }: Props) {
           {lookup.definitionMs !== null && ` · ${lookup.definitionMs} ms`}
           {explanation && ` · ${explanation.provider}`}
         </span>
-        <button className="primary" disabled={!canSave || inDeck} onClick={onSave}>
-          {inDeck ? 'In deck' : 'Save to deck'}
-        </button>
+        <div className="actions">
+          {onRewrite && (
+            <button className="ghost small" onClick={onRewrite}>
+              Rephrase paragraph
+            </button>
+          )}
+          <button className="primary" disabled={!canSave || inDeck} onClick={onSave}>
+            {inDeck ? 'In deck' : 'Save to deck'}
+          </button>
+        </div>
       </footer>
     </Popover>
   );

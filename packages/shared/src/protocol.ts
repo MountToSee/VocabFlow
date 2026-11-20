@@ -6,9 +6,11 @@ import type {
   ContextualExplanation,
   Definition,
   Issue,
+  ParagraphRewrite,
 } from './types.js';
 
 export const MAX_ANALYZE_CHARS = 50_000;
+export const MAX_REWRITE_CHARS = 4_000;
 
 export const clientMessageSchema = z.discriminatedUnion('type', [
   z.object({
@@ -23,6 +25,13 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
     word: z.string().min(1).max(64),
     /** Sentence surrounding the word, used for contextual explanations. */
     context: z.string().max(2_000).optional(),
+  }),
+  z.object({
+    type: z.literal('rewrite'),
+    requestId: z.string().min(1).max(128),
+    paragraph: z.string().min(1).max(MAX_REWRITE_CHARS),
+    /** Word or phrase the writer was unsure about; the rewrite pays special attention to it. */
+    focus: z.string().max(200).optional(),
   }),
   z.object({ type: z.literal('ping') }),
 ]);
@@ -55,6 +64,14 @@ export type ServerMessage =
       type: 'lookup:explanation';
       requestId: string;
       explanation: ContextualExplanation | null;
+      latencyMs: number;
+    }
+  | {
+      type: 'rewrite:result';
+      requestId: string;
+      /** Offline phrasebook result first (final: false), then the AI rewrite (final: true). */
+      rewrite: ParagraphRewrite;
+      final: boolean;
       latencyMs: number;
     }
   | { type: 'error'; message: string; requestId?: string };
