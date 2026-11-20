@@ -425,7 +425,14 @@ button.ghost:hover {
   margin-top: 12px;
 }
 .grade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   text-transform: capitalize;
+}
+.grade.suggested {
+  background: var(--accent-soft);
 }
 .grade-again {
   border-color: var(--grammar);
@@ -445,6 +452,122 @@ button.ghost:hover {
 }
 .deck-list li button {
   margin-left: auto;
+}
+
+.deck-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.deck-stats div {
+  display: flex;
+  flex-direction: column;
+}
+.deck-stats strong {
+  font-size: 20px;
+}
+.start-review {
+  width: 100%;
+}
+.forecast {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  height: 64px;
+  margin: 16px 0 8px;
+}
+.forecast-day {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+  min-height: 0;
+}
+.forecast-bar {
+  width: 100%;
+  min-height: 2px;
+  background: var(--accent);
+  border-radius: 3px 3px 0 0;
+  opacity: 0.7;
+}
+
+/* Review session */
+.review-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 10vh 16px 16px;
+  background: color-mix(in srgb, var(--bg, #000) 82%, transparent);
+  backdrop-filter: blur(6px);
+}
+.review {
+  width: min(560px, 100%);
+}
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.review-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 12%);
+}
+.review-prompt {
+  font-size: 19px;
+  line-height: 1.5;
+}
+.review-answer {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.review-answer input {
+  flex: 1;
+  font: inherit;
+  font-size: 16px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+.answer-result {
+  font-weight: 600;
+}
+.result-correct {
+  color: var(--accent);
+}
+.result-close {
+  color: #b7791f;
+}
+.result-wrong {
+  color: var(--grammar);
+}
+.stage {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.stage-new {
+  color: var(--accent);
+}
+.review-summary {
+  text-align: center;
 }
 
 @media (max-width: 900px) {

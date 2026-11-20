@@ -10,6 +10,11 @@ export interface VocabCard {
   noteId: string;
   srs: SrsState;
   createdAt: number;
+  /** Number of times the card has been graded. */
+  reviews?: number;
+  /** Number of times the card was forgotten ("again"). */
+  lapses?: number;
+  lastReviewedAt?: number;
 }
 
 const KEY = 'vocabflow:deck:v1';
@@ -26,8 +31,18 @@ export function createCard(input: Omit<VocabCard, 'id' | 'srs' | 'createdAt'>): 
   return { ...input, id: crypto.randomUUID(), srs: initialSrsState(), createdAt: Date.now() };
 }
 
-export function gradeCard(card: VocabCard, grade: ReviewGrade): VocabCard {
-  return { ...card, srs: review(card.srs, grade) };
+export function gradeCard(
+  card: VocabCard,
+  grade: ReviewGrade,
+  now: number = Date.now(),
+): VocabCard {
+  return {
+    ...card,
+    srs: review(card.srs, grade, now),
+    reviews: (card.reviews ?? 0) + 1,
+    lapses: (card.lapses ?? 0) + (grade === 'again' ? 1 : 0),
+    lastReviewedAt: now,
+  };
 }
 
 /** Blanks out the word (and simple inflections) in the sentence for cloze review. */
