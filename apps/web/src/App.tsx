@@ -11,11 +11,15 @@ import { useAnalysis } from './hooks/useAnalysis';
 import { useLookup } from './hooks/useLookup';
 import { useVocabSocket } from './hooks/useVocabSocket';
 import { createCard, gradeCard, loadDeck, saveDeck, type VocabCard } from './lib/deck';
+import type { LookupHit } from './lib/lookupTerm';
 import { loadNotes, newNote, saveNotes, type Note } from './lib/notes';
+import { readJson, writeJson } from './lib/storage';
 
 type PanelTab = 'insights' | 'study';
 
 const issueKey = (i: Issue) => `${i.original}|${i.message}`;
+const HOVER_KEY = 'vocabflow:hover-lookup:v1';
+const PEEK_CLOSE_DELAY_MS = 300;
 
 export function App() {
   const [notes, setNotes] = useState<Note[]>(loadNotes);
@@ -26,15 +30,48 @@ export function App() {
   const [plainText, setPlainText] = useState('');
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const [openIssue, setOpenIssue] = useState<{ issue: Issue; x: number; y: number } | null>(null);
+  const [hoverLookup, setHoverLookup] = useState(() => readJson(HOVER_KEY, true));
   const editor = useRef<NoteEditorHandle>(null);
+  const peekCloseTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const active = notes.find((n) => n.id === activeId) ?? notes[0]!;
   const { socket, status, capabilities } = useVocabSocket();
   const analysis = useAnalysis(socket, active.id);
-  const { lookup, open: openLookup, close: closeLookup } = useLookup(socket);
+  const {
+    lookup,
+    open: openLookup,
+    expand: expandLookup,
+    close: closeLookup,
+    closePeek,
+  } = useLookup(socket);
 
   useEffect(() => saveNotes(notes), [notes]);
   useEffect(() => saveDeck(deck), [deck]);
+  useEffect(() => writeJson(HOVER_KEY, hoverLookup), [hoverLookup]);
+
+  const cancelPeekClose = useCallback(() => clearTimeout(peekCloseTimer.current), []);
+  const schedulePeekClose = useCallback(() => {
+    clearTimeout(peekCloseTimer.current);
+    peekCloseTimer.current = setTimeout(closePeek, PEEK_CLOSE_DELAY_MS);
+  }, [closePeek]);
+  useEffect(() => cancelPeekClose, [cancelPeekClose]);
+
+  const handleLookup = useCallback(
+    (hit: LookupHit, origin: 'hover' | 'select') => {
+      cancelPeekClose();
+      if (origin === 'select') setOpenIssue(null);
+      openLookup(hit.word, hit.context, hit.anchor, {
+        mode: origin === 'hover' ? 'peek' : 'full',
+        origin,
+      });
+    },
+    [cancelPeekClose, openLookup],
+  );
+
+  const handleTyping = useCallback(() => {
+    cancelPeekClose();
+    closeLookup();
+  }, [cancelPeekClose, closeLookup]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -123,6 +160,14 @@ export function App() {
         <div className="toolbar">
           <button
             className="ghost small"
+            aria-pressed={hoverLookup}
+            onClick={() => setHoverLookup((h) => !h)}
+            title="Show definitions when the pointer rests on a word"
+          >
+            Hover lookup: {hoverLookup ? 'on' : 'off'}
+          </button>
+          <button
+            className="ghost small"
             onClick={() => setFocusMode((f) => !f)}
             title="Toggle focus mode (Ctrl/Cmd + .)"
           >
@@ -137,10 +182,10 @@ export function App() {
             issues={visibleIssues}
             onMarkdownChange={handleMarkdownChange}
             onTextChange={handleTextChange}
-            onLookup={(word, context, x, y) => {
-              setOpenIssue(null);
-              openLookup(word, context, x, y);
-            }}
+            hoverLookup={hoverLookup}
+            onLookup={handleLookup}
+            onHoverEnd={schedulePeekClose}
+            onTyping={handleTyping}
             onIssueClick={(issue, x, y) => {
               closeLookup();
               setOpenIssue({ issue, x, y });
@@ -194,7 +239,15 @@ export function App() {
       )}
 
       {lookup && (
-        <LookupCard lookup={lookup} inDeck={inDeck} onSave={saveLookup} onClose={closeLookup} />
+        <LookupCard
+          lookup={lookup}
+          inDeck={inDeck}
+          onSave={saveLookup}
+          onExpand={expandLookup}
+          onClose={closeLookup}
+          onPointerEnter={cancelPeekClose}
+          onPointerLeave={schedulePeekClose}
+        />
       )}
       {openIssue && (
         <IssueCard

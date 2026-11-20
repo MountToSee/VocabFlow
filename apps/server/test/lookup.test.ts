@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { LatencyAwareRouter } from '../src/llm/router.js';
 import { LocalLexiconProvider } from '../src/lookup/localLexicon.js';
-import { MacOsDictionaryProvider, parseAppleDefinition } from '../src/lookup/macosDictionary.js';
+import {
+  MacOsDictionaryProvider,
+  parseAppleDefinition,
+  resolveHelperPath,
+} from '../src/lookup/macosDictionary.js';
 import { LookupPipeline } from '../src/lookup/pipeline.js';
 import type { DefinitionProvider } from '../src/lookup/types.js';
 import { FakeLlm } from './fakes.js';
@@ -32,6 +36,21 @@ describe('MacOsDictionaryProvider', () => {
     const provider = new MacOsDictionaryProvider(undefined, 100, 'linux');
     expect(provider.available).toBe(false);
     expect(await provider.lookup('word')).toBeNull();
+  });
+});
+
+describe('resolveHelperPath', () => {
+  const built = '/repo/native/macos/DictionaryHelper/.build/release/DictionaryHelper';
+
+  it('prefers an explicit path', () => {
+    expect(resolveHelperPath('/custom/helper', '/repo', () => true)).toBe('/custom/helper');
+  });
+
+  it('finds a locally built helper from the repo root or a workspace', () => {
+    const exists = (p: string) => p === built;
+    expect(resolveHelperPath(undefined, '/repo', exists)).toBe(built);
+    expect(resolveHelperPath(undefined, '/repo/apps/server', exists)).toBe(built);
+    expect(resolveHelperPath(undefined, '/elsewhere', exists)).toBeUndefined();
   });
 });
 

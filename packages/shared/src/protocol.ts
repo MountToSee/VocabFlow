@@ -23,6 +23,8 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
     word: z.string().min(1).max(64),
     /** Sentence surrounding the word, used for contextual explanations. */
     context: z.string().max(2_000).optional(),
+    /** Set to false for a definition-only "peek" (no LLM round-trip). Defaults to true. */
+    explain: z.boolean().optional(),
   }),
   z.object({ type: z.literal('ping') }),
 ]);

@@ -7,8 +7,10 @@ language-learning engine that uses your own writing as study material.
 - **Real-time corrections over WebSockets** — instant rule-based hints on every pause, then
   streamed AI corrections paragraph by paragraph. Underlines are drawn with the CSS Custom
   Highlight API; click one to apply a fix.
-- **Contextual dictionary** — double-click any word: the native macOS dictionary answers
-  instantly, then an LLM explains what the word means _in your sentence_ with fitting synonyms.
+- **Contextual dictionary** — rest the pointer on a word for an instant definition peek, or
+  select / double-click a word or short phrase: the native macOS dictionary answers instantly,
+  then an LLM explains what it means _in your sentence_ with fitting synonyms. Save it to
+  review straight from the popover.
 - **Study deck from your own writing** — save looked-up words; review them as cloze cards
   built from the sentence you wrote, scheduled with spaced repetition (SM-2).
 - **Latency-aware AI fallback** — cloud LLM → local model (Ollama) → offline heuristics,

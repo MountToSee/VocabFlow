@@ -12,18 +12,38 @@ interface Props {
   lookup: LookupState;
   inDeck: boolean;
   onSave: () => void;
+  onExpand: () => void;
   onClose: () => void;
+  onPointerEnter?: () => void;
+  onPointerLeave?: () => void;
 }
 
-export function LookupCard({ lookup, inDeck, onSave, onClose }: Props) {
-  const { definition, explanation } = lookup;
+export function LookupCard({
+  lookup,
+  inDeck,
+  onSave,
+  onExpand,
+  onClose,
+  onPointerEnter,
+  onPointerLeave,
+}: Props) {
+  const { definition, explanation, mode } = lookup;
   const synonyms = [
     ...new Set([...(explanation?.synonyms ?? []), ...(definition?.synonyms ?? [])]),
   ];
   const canSave = !!(definition?.definition || explanation?.explanation);
 
   return (
-    <Popover x={lookup.x} y={lookup.y} onClose={onClose} label={`Definition of ${lookup.word}`}>
+    <Popover
+      x={lookup.x}
+      y={lookup.y}
+      gap={6}
+      className={`lookup lookup-${mode}`}
+      onClose={onClose}
+      label={`Definition of ${lookup.word}`}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
+    >
       <header className="card-header">
         <h3>{lookup.word}</h3>
         {definition?.partOfSpeech && <span className="pos">{definition.partOfSpeech}</span>}
@@ -34,18 +54,22 @@ export function LookupCard({ lookup, inDeck, onSave, onClose }: Props) {
         <p className="muted">Looking up…</p>
       ) : definition.definition ? (
         <p>{definition.definition}</p>
-      ) : null}
+      ) : (
+        mode === 'peek' && <p className="muted">No dictionary entry.</p>
+      )}
 
-      <section className="explanation">
-        <h4>In your sentence</h4>
-        {lookup.explaining ? (
-          <p className="muted shimmer">Thinking about the context…</p>
-        ) : explanation ? (
-          <p>{explanation.explanation}</p>
-        ) : (
-          <p className="muted">Contextual explanation unavailable (no AI provider reachable).</p>
-        )}
-      </section>
+      {mode === 'full' && (
+        <section className="explanation">
+          <h4>In your sentence</h4>
+          {lookup.explaining ? (
+            <p className="muted shimmer">Thinking about the context…</p>
+          ) : explanation ? (
+            <p>{explanation.explanation}</p>
+          ) : (
+            <p className="muted">Contextual explanation unavailable (no AI provider reachable).</p>
+          )}
+        </section>
+      )}
 
       {synonyms.length > 0 && (
         <div className="chips">
@@ -63,9 +87,16 @@ export function LookupCard({ lookup, inDeck, onSave, onClose }: Props) {
           {lookup.definitionMs !== null && ` · ${lookup.definitionMs} ms`}
           {explanation && ` · ${explanation.provider}`}
         </span>
-        <button className="primary" disabled={!canSave || inDeck} onClick={onSave}>
-          {inDeck ? 'In deck' : 'Save to deck'}
-        </button>
+        <span className="card-actions">
+          {mode === 'peek' && (
+            <button className="ghost small" onClick={onExpand}>
+              Explain in context
+            </button>
+          )}
+          <button className="primary" disabled={!canSave || inDeck} onClick={onSave}>
+            {inDeck ? 'Saved ✓' : 'Save to review'}
+          </button>
+        </span>
       </footer>
     </Popover>
   );

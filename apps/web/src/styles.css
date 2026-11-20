@@ -165,6 +165,7 @@ button.ghost:hover {
 .toolbar {
   display: flex;
   justify-content: flex-end;
+  gap: 6px;
   padding: 8px 12px 0;
 }
 .page {
@@ -455,4 +456,14 @@ button.ghost:hover {
   .panel {
     display: none;
   }
+}
+
+.card-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.lookup-peek h3 {
+  font-size: 18px;
 }
